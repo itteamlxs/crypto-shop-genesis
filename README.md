@@ -1,73 +1,61 @@
-# Welcome to your Lovable project
 
-## Project info
+# Crypto Shop - PHP Online Store with Cryptocurrency Payments
 
-**URL**: https://lovable.dev/projects/8a09084a-7ffe-4c2a-8c32-2a548fdced9f
+An e-commerce platform built with PHP that allows customers to purchase products using cryptocurrencies through BTCPay Server integration.
 
-## How can I edit this code?
+## Requirements
 
-There are several ways of editing your application.
+- PHP 8.1 or higher
+- MySQL 5.7 or higher
+- Composer
 
-**Use Lovable**
+## Installation
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/8a09084a-7ffe-4c2a-8c32-2a548fdced9f) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+1. Clone this repository:
+```
+git clone <repository-url>
+cd crypto-shop
 ```
 
-**Edit a file directly in GitHub**
+2. Install dependencies using Composer:
+```
+composer install
+```
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+3. Set up the database:
+```
+mysql -u your_username -p < database.sql
+```
 
-**Use GitHub Codespaces**
+4. Configure environment variables:
+```
+cp .env.example .env
+```
+Then, edit the `.env` file with your actual credentials.
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+5. Start the PHP development server:
+```
+cd public
+php -S localhost:8000
+```
 
-## What technologies are used for this project?
+6. Visit `http://localhost:8000` in your browser.
 
-This project is built with:
+## Features
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+- Product catalog with details
+- Shopping cart functionality
+- Cryptocurrency payment processing via BTCPay Server
+- Order management
+- Email notifications
 
-## How can I deploy this project?
+## Project Structure
 
-Simply open [Lovable](https://lovable.dev/projects/8a09084a-7ffe-4c2a-8c32-2a548fdced9f) and click on Share -> Publish.
+- `/public`: Public-facing files (index.php)
+- `/src`: Application source code
+- `/views`: Template files
+- `/config`: Configuration files
 
-## Can I connect a custom domain to my Lovable project?
+## License
 
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+This project is open-source and available under the MIT License.
