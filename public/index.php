@@ -25,5 +25,9 @@ $router->post('/order/create', 'OrderController@create');
 $router->get('/order/status/{id}', 'OrderController@status');
 $router->get('/order/success', 'OrderController@success');
 
+// Admin routes - these are handled directly by the PHP files in /public/admin/
+// The router doesn't need to handle them since they're accessed directly.
+// To access these pages, visit /admin/login.php and /admin/dashboard.php
+
 // Execute the router
 $router->resolve();

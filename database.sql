@@ -29,8 +29,29 @@ CREATE TABLE IF NOT EXISTS orders (
     FOREIGN KEY (product_id) REFERENCES products(id)
 );
 
+-- Admin users table
+CREATE TABLE IF NOT EXISTS admins (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(50) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- Login attempts table for rate limiting
+CREATE TABLE IF NOT EXISTS login_attempts (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    ip_address VARCHAR(45) NOT NULL,
+    attempt_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Insert sample products
 INSERT INTO products (name, price, description, stock, image_url) VALUES 
 ('Bitcoin T-Shirt', 25.99, 'High-quality cotton t-shirt with Bitcoin logo.', 100, 'img/products/bitcoin-tshirt.jpg'),
 ('Ethereum Mug', 15.50, 'Ceramic mug with Ethereum logo, perfect for your morning coffee.', 75, 'img/products/ethereum-mug.jpg'),
 ('Crypto Hardware Wallet', 89.99, 'Secure hardware wallet for storing your cryptocurrency assets.', 30, 'img/products/hardware-wallet.jpg');
+
+-- Insert a default admin user (username: admin, password: admin123)
+-- Note: The password is hashed using password_hash() with PASSWORD_DEFAULT
+INSERT INTO admins (username, password) VALUES 
+('admin', '$2y$10$HKgXlAGF3pJSToEH3WF2LeLwQR.MHI0B9Sm4srQufnK5tDdFQ5n4.');
