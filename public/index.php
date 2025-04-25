@@ -1,19 +1,11 @@
-
 <?php
 /**
  * Main entry point for the application
  * Routes all requests to appropriate controllers
  */
 
-// Define the application root directory
-define('APP_ROOT', dirname(__DIR__));
-
-// Require the autoloader
-require_once APP_ROOT . '/vendor/autoload.php';
-
-// Load environment variables
-$dotenv = Dotenv\Dotenv::createImmutable(APP_ROOT);
-$dotenv->safeLoad();
+// Load bootstrap configuration
+require_once dirname(__DIR__) . '/config/bootstrap.php';
 
 // Include the router
 require_once APP_ROOT . '/src/Router.php';

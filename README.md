@@ -12,34 +12,54 @@ An e-commerce platform built with PHP that allows customers to purchase products
 ## Installation
 
 1. Clone this repository:
-```
+```bash
 git clone <repository-url>
 cd crypto-shop
 ```
 
 2. Install dependencies using Composer:
-```
+```bash
 composer install
 ```
 
 3. Set up the database:
-```
+```bash
 mysql -u your_username -p < database.sql
 ```
 
 4. Configure environment variables:
-```
+```bash
 cp .env.example .env
 ```
-Then, edit the `.env` file with your actual credentials.
+Then edit the `.env` file with your actual credentials.
 
 5. Start the PHP development server:
-```
+```bash
 cd public
 php -S localhost:8000
 ```
 
-6. Visit `http://localhost:8000` in your browser.
+## Adding Test Products
+
+You can add test products to the database using this SQL:
+
+```sql
+INSERT INTO products (name, price, description, stock, image_url) VALUES 
+('Bitcoin T-Shirt', 25.99, 'High-quality cotton t-shirt with Bitcoin logo.', 100, 'img/products/bitcoin-tshirt.jpg'),
+('Ethereum Mug', 15.50, 'Ceramic mug with Ethereum logo.', 75, 'img/products/ethereum-mug.jpg'),
+('Crypto Hardware Wallet', 89.99, 'Secure hardware wallet for cryptocurrency.', 30, 'img/products/hardware-wallet.jpg');
+```
+
+## Development
+
+To verify your setup:
+
+1. Ensure the database is properly configured:
+   - Check that `database.sql` has been imported
+   - Verify `.env` contains correct database credentials
+   - Test connection by visiting the homepage
+
+2. Access the development server at `http://localhost:8000`
 
 ## Features
 
