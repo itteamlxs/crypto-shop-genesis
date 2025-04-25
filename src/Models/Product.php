@@ -30,4 +30,20 @@ class Product {
         $stmt = $db->query("SELECT * FROM products WHERE id = ? AND stock > 0", [$id]);
         return $stmt->fetch();
     }
+    
+    /**
+     * Decrease product stock after purchase
+     * 
+     * @param int $id Product ID
+     * @param int $quantity Quantity to decrease
+     * @return bool Success status
+     */
+    public static function decreaseStock($id, $quantity = 1) {
+        $db = Database::getInstance();
+        $stmt = $db->query(
+            "UPDATE products SET stock = stock - ? WHERE id = ? AND stock >= ?",
+            [$quantity, $id, $quantity]
+        );
+        return $stmt->rowCount() > 0;
+    }
 }

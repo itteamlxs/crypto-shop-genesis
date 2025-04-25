@@ -4,7 +4,7 @@ namespace App\Controllers;
 
 use App\Models\Order;
 use App\Models\Product;
-use App\Services\BtcPayService;
+use App\Services\PaymentService;
 use App\Services\MailService;
 
 /**
@@ -29,14 +29,15 @@ class OrderController {
         $total = 0;
         
         foreach ($cart as $productId => $quantity) {
-            $product = Product::findById($productId);
+            $product = Product::getById($productId);
             if ($product) {
+                $subtotal = $product['price'] * $quantity;
                 $cartItems[] = [
                     'product' => $product,
                     'quantity' => $quantity,
-                    'subtotal' => $product['price'] * $quantity
+                    'subtotal' => $subtotal
                 ];
-                $total += $product['price'] * $quantity;
+                $total += $subtotal;
             }
         }
         
@@ -70,33 +71,40 @@ class OrderController {
         // For simplicity in this example, we'll just process the first item
         // In a real app, you might want to create an "order_items" table
         foreach ($cart as $productId => $quantity) {
-            $product = Product::findById($productId);
+            $product = Product::getById($productId);
             
             if ($product) {
-                $orderData = [
-                    'product_id' => $productId,
-                    'amount' => $product['price'] * $quantity,
-                    'email' => $email
-                ];
+                // Create payment
+                $paymentService = new PaymentService();
+                $amount = $product['price'] * $quantity;
                 
-                // Create order
-                $orderId = Order::create($orderData);
+                $paymentData = $paymentService->createInvoice(
+                    $amount, 
+                    $email, 
+                    $product['name']
+                );
                 
-                if ($orderId) {
-                    // Decrease product stock
-                    Product::decreaseStock($productId, $quantity);
+                if ($paymentData) {
+                    // Create order
+                    $orderData = [
+                        'product_id' => $productId,
+                        'amount' => $amount,
+                        'crypto_address' => $paymentData['address'],
+                        'status' => 'pending',
+                        'email' => $email
+                    ];
                     
-                    // Generate crypto payment
-                    $btcPayService = new BtcPayService();
-                    $paymentData = $btcPayService->createInvoice($orderId, $orderData['amount']);
+                    $orderId = Order::create($orderData);
                     
-                    if ($paymentData) {
-                        // Update order with crypto address
-                        Order::updatePaymentInfo($orderId, $paymentData['address']);
+                    if ($orderId) {
+                        // Decrease product stock
+                        Product::decreaseStock($productId, $quantity);
                         
-                        // Send confirmation email
-                        $mailService = new MailService();
-                        $mailService->sendOrderConfirmation($email, $orderId, $product['name'], $paymentData);
+                        // Send confirmation email (if available)
+                        if (class_exists('\\App\\Services\\MailService') && !empty($email)) {
+                            $mailService = new MailService();
+                            $mailService->sendOrderConfirmation($email, $orderId, $product['name'], $paymentData);
+                        }
                         
                         // Clear cart and redirect to status page
                         $_SESSION['cart'] = [];
@@ -118,12 +126,16 @@ class OrderController {
      * @param int $id Order ID
      */
     public function status($id) {
-        $order = Order::findById($id);
+        $order = Order::getById($id);
         
         if (!$order) {
             header("Location: /");
             exit;
         }
+        
+        // Calculate BTC amount (for display purposes)
+        $paymentService = new PaymentService();
+        $btcAmount = $paymentService->convertToBtc($order['amount']);
         
         require APP_ROOT . '/views/orders/status.php';
     }
@@ -133,5 +145,33 @@ class OrderController {
      */
     public function success() {
         require APP_ROOT . '/views/orders/success.php';
+    }
+    
+    /**
+     * API endpoint to check payment status
+     * 
+     * @param int $id Order ID
+     */
+    public function checkPaymentStatus($id) {
+        header('Content-Type: application/json');
+        
+        $order = Order::getById($id);
+        
+        if (!$order) {
+            echo json_encode(['error' => 'Order not found']);
+            exit;
+        }
+        
+        // In a production environment, we would check with BTCPay Server
+        $paymentService = new PaymentService();
+        $status = $paymentService->checkPaymentStatus($id);
+        
+        // Update order status if payment is confirmed
+        if ($status !== $order['status']) {
+            Order::updateStatus($id, $status);
+        }
+        
+        echo json_encode(['status' => $status]);
+        exit;
     }
 }

@@ -6,15 +6,9 @@ use App\Database;
 
 /**
  * Order model class
+ * Handles all order-related database operations
  */
 class Order {
-    private $id;
-    private $productId;
-    private $amount;
-    private $cryptoAddress;
-    private $status;
-    private $email;
-    
     /**
      * Create a new order
      * 
@@ -24,8 +18,15 @@ class Order {
     public static function create($orderData) {
         $db = Database::getInstance();
         $stmt = $db->query(
-            "INSERT INTO orders (product_id, amount, email) VALUES (?, ?, ?)",
-            [$orderData['product_id'], $orderData['amount'], $orderData['email']]
+            "INSERT INTO orders (product_id, amount, crypto_address, status, email) 
+             VALUES (?, ?, ?, ?, ?)",
+            [
+                $orderData['product_id'], 
+                $orderData['amount'], 
+                $orderData['crypto_address'] ?? null, 
+                $orderData['status'] ?? 'pending',
+                $orderData['email'] ?? null
+            ]
         );
         
         if ($stmt->rowCount() > 0) {
@@ -33,22 +34,6 @@ class Order {
         }
         
         return false;
-    }
-    
-    /**
-     * Update order with crypto payment information
-     * 
-     * @param int $orderId Order ID
-     * @param string $cryptoAddress Cryptocurrency address
-     * @return bool Success status
-     */
-    public static function updatePaymentInfo($orderId, $cryptoAddress) {
-        $db = Database::getInstance();
-        $stmt = $db->query(
-            "UPDATE orders SET crypto_address = ? WHERE id = ?",
-            [$cryptoAddress, $orderId]
-        );
-        return $stmt->rowCount() > 0;
     }
     
     /**
@@ -68,19 +53,34 @@ class Order {
     }
     
     /**
-     * Find an order by ID
+     * Get order by ID
      * 
-     * @param int $id Order ID
+     * @param int $orderId Order ID
      * @return array|false Order data or false if not found
      */
-    public static function findById($id) {
+    public static function getById($orderId) {
         $db = Database::getInstance();
         $stmt = $db->query(
-            "SELECT o.*, p.name as product_name, p.image_url 
+            "SELECT o.*, p.name as product_name, p.price as product_price
              FROM orders o
              JOIN products p ON o.product_id = p.id
              WHERE o.id = ?",
-            [$id]
+            [$orderId]
+        );
+        return $stmt->fetch();
+    }
+    
+    /**
+     * Get order by crypto address
+     * 
+     * @param string $address Cryptocurrency address
+     * @return array|false Order data or false if not found
+     */
+    public static function getByAddress($address) {
+        $db = Database::getInstance();
+        $stmt = $db->query(
+            "SELECT * FROM orders WHERE crypto_address = ?",
+            [$address]
         );
         return $stmt->fetch();
     }

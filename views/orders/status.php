@@ -46,10 +46,8 @@
                 <?php if ($order['status'] == 'pending' && !empty($order['crypto_address'])): ?>
                 <div class="text-center mb-3">
                     <div class="qr-code bg-light p-3 d-inline-block">
-                        <!-- In a real app, you would generate a QR code for the payment -->
-                        <div style="width:150px;height:150px;background-color:#f8f9fa;border:1px solid #dee2e6;display:flex;align-items:center;justify-content:center;">
-                            QR Code
-                        </div>
+                        <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=<?php echo urlencode('bitcoin:' . $order['crypto_address']); ?>" 
+                             alt="Payment QR Code" class="img-fluid">
                     </div>
                 </div>
                 
@@ -60,7 +58,7 @@
                         <button class="btn btn-outline-secondary" type="button" onclick="copyToClipboard('<?php echo htmlspecialchars($order['crypto_address']); ?>')">Copy</button>
                     </div>
                     <small class="d-block mb-2">The payment will be automatically detected once confirmed on the blockchain.</small>
-                    <p class="mb-0"><strong>Amount:</strong> 0.00123456 BTC</p>
+                    <p class="mb-0"><strong>Amount:</strong> <?php echo number_format($btcAmount, 8); ?> BTC</p>
                 </div>
                 <?php elseif ($order['status'] == 'paid'): ?>
                 <div class="text-center">
@@ -93,20 +91,44 @@
         Refresh Status
     </button>
 </div>
-<?php endif; ?>
 
 <script>
-function copyToClipboard(text) {
-    navigator.clipboard.writeText(text).then(function() {
-        alert('Address copied to clipboard');
-    }, function(err) {
-        console.error('Could not copy text: ', err);
-    });
-}
+// Polling mechanism to check payment status
+(function() {
+    const orderId = <?php echo $order['id']; ?>;
+    let checkInterval;
 
-document.getElementById('refresh-status')?.addEventListener('click', function() {
-    location.reload();
-});
+    // Function to check payment status
+    function checkStatus() {
+        fetch(`/api/payment-status.php?id=${orderId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.status !== 'pending') {
+                    clearInterval(checkInterval);
+                    window.location.reload();
+                }
+            })
+            .catch(error => console.error('Error checking payment status:', error));
+    }
+
+    // Start polling every 10 seconds
+    checkInterval = setInterval(checkStatus, 10000);
+    
+    // Manual refresh
+    document.getElementById('refresh-status').addEventListener('click', function() {
+        location.reload();
+    });
+    
+    // Copy to clipboard function
+    window.copyToClipboard = function(text) {
+        navigator.clipboard.writeText(text).then(function() {
+            alert('Address copied to clipboard');
+        }, function(err) {
+            console.error('Could not copy text: ', err);
+        });
+    };
+})();
 </script>
+<?php endif; ?>
 
 <?php require APP_ROOT . '/views/layout/footer.php'; ?>

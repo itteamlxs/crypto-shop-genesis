@@ -50,6 +50,22 @@ INSERT INTO products (name, price, description, stock, image_url) VALUES
 ('Crypto Hardware Wallet', 89.99, 'Secure hardware wallet for cryptocurrency.', 30, 'img/products/hardware-wallet.jpg');
 ```
 
+## Setting Up BTCPay Server
+
+### Overview
+This application uses BTCPay Server for processing cryptocurrency payments. To set it up:
+
+1. Create an account on a BTCPay Server instance or set up your own instance (https://btcpayserver.org/)
+2. Create a store and connect your cryptocurrency wallets
+3. Generate API credentials (API Key and Secret) from your store settings
+4. Add these credentials to your `.env` file:
+   - `CRYPTO_API_KEY`: Your BTCPay Server API Key
+   - `CRYPTO_API_SECRET`: Your BTCPay Server API Secret
+   - `CRYPTO_API_URL`: Your BTCPay Server URL (e.g., https://your-btcpay-instance.com)
+
+### Testing Payments
+For development purposes, the application includes a simulated payment flow that doesn't require an actual BTCPay Server connection. This allows you to test the checkout process without setting up cryptocurrency wallets.
+
 ## Development
 
 To verify your setup:
@@ -60,6 +76,11 @@ To verify your setup:
    - Test connection by visiting the homepage
 
 2. Access the development server at `http://localhost:8000`
+
+3. Test the checkout flow:
+   - Add products to cart
+   - Complete the checkout process
+   - Observe the simulated cryptocurrency payment flow
 
 ## Features
 
