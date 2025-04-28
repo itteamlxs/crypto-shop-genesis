@@ -14,6 +14,7 @@ class PaymentService {
     private $client;
     private $apiKey;
     private $apiUrl;
+    private $isTestnet;
     
     /**
      * Constructor - Initialize BTCPay Server client
@@ -21,6 +22,7 @@ class PaymentService {
     public function __construct() {
         $this->apiKey = $_ENV['CRYPTO_API_KEY'] ?? '';
         $this->apiUrl = $_ENV['CRYPTO_API_URL'] ?? 'https://btcpay.example.com/';
+        $this->isTestnet = strpos($this->apiUrl, 'testnet') !== false;
         
         // In a production environment, we would initialize the BTCPay client here
         // For example:
@@ -52,8 +54,8 @@ class PaymentService {
         // ]);
         
         // Simulate creating a BTCPay invoice
-        // Generate a fake Bitcoin address
-        $bitcoinAddress = '1' . bin2hex(random_bytes(20));
+        // Generate a fake Bitcoin address with testnet prefix if in testnet mode
+        $bitcoinAddress = $this->isTestnet ? 'm' . bin2hex(random_bytes(20)) : '1' . bin2hex(random_bytes(20));
         
         return [
             'id' => uniqid('inv_'),
@@ -62,7 +64,8 @@ class PaymentService {
             'amount_usd' => $amount,
             'expiration_time' => time() + 3600, // 1 hour expiration
             'status' => 'pending',
-            'payment_url' => "bitcoin:$bitcoinAddress?amount=" . $this->convertToBtc($amount)
+            'payment_url' => "bitcoin:$bitcoinAddress?amount=" . $this->convertToBtc($amount),
+            'is_testnet' => $this->isTestnet
         ];
     }
     
@@ -86,6 +89,53 @@ class PaymentService {
     }
     
     /**
+     * Confirm payment for an order
+     * 
+     * @param int $orderId Order ID
+     * @return bool True if payment confirmed, false otherwise
+     */
+    public function confirmPayment($orderId) {
+        // Get order details
+        $order = \App\Models\Order::getById($orderId);
+        
+        if (!$order) {
+            return false;
+        }
+        
+        // Check payment status with BTCPay Server
+        $status = $this->checkPaymentStatus($orderId);
+        
+        // If payment is confirmed, update order status
+        if ($status === 'paid' && $order['status'] !== 'paid') {
+            // Update order status
+            \App\Models\Order::updateStatus($orderId, 'paid');
+            
+            // Send confirmation email if email is provided
+            if (!empty($order['email']) && class_exists('\App\Services\MailService')) {
+                $mailService = new \App\Services\MailService();
+                $product = \App\Models\Product::getById($order['product_id']);
+                
+                $paymentData = [
+                    'address' => $order['crypto_address'],
+                    'amount_btc' => $this->convertToBtc($order['amount']),
+                    'amount_usd' => $order['amount']
+                ];
+                
+                $mailService->sendOrderConfirmation(
+                    $order['email'],
+                    $orderId,
+                    $product['name'] ?? 'Product',
+                    $paymentData
+                );
+            }
+            
+            return true;
+        }
+        
+        return false;
+    }
+    
+    /**
      * Generate QR code URL for payment
      * 
      * @param string $paymentUrl Payment URL
@@ -103,8 +153,17 @@ class PaymentService {
      * @return float Amount in BTC
      */
     private function convertToBtc($usdAmount) {
-        // Simulate exchange rate (1 BTC = $50,000 USD in this example)
-        $exchangeRate = 50000;
+        // Simulate exchange rate - higher for testnet to make amounts more visible
+        $exchangeRate = $this->isTestnet ? 10000 : 50000; // 1 BTC = $10,000 in testnet, $50,000 in mainnet
         return round($usdAmount / $exchangeRate, 8);
+    }
+    
+    /**
+     * Check if running in testnet mode
+     * 
+     * @return bool True if in testnet mode
+     */
+    public function isTestnet() {
+        return $this->isTestnet;
     }
 }
