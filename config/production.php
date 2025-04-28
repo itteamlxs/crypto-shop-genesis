@@ -14,6 +14,18 @@ ini_set('session.cookie_secure', 1);
 ini_set('session.cookie_httponly', 1);
 ini_set('session.use_only_cookies', 1);
 ini_set('session.cookie_samesite', 'Strict');
+ini_set('session.gc_maxlifetime', 1800); // 30 minutes
+ini_set('session.gc_probability', 1);
+ini_set('session.gc_divisor', 100);
+
+// Disable potentially dangerous PHP features
+ini_set('allow_url_fopen', 0);
+ini_set('allow_url_include', 0);
+ini_set('expose_php', 0);
+
+// Set upload limits
+ini_set('post_max_size', '8M');
+ini_set('upload_max_filesize', '2M');
 
 // Set secure headers
 header('X-Content-Type-Options: nosniff');

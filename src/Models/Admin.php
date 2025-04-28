@@ -113,6 +113,18 @@ class Admin {
     }
     
     /**
+     * Clean old login attempts (older than 24 hours)
+     * 
+     * @return void
+     */
+    public static function cleanOldLoginAttempts() {
+        $db = Database::getInstance();
+        $db->query(
+            "DELETE FROM login_attempts WHERE attempt_time < DATE_SUB(NOW(), INTERVAL 24 HOUR)"
+        );
+    }
+    
+    /**
      * Check if IP address is blocked due to too many login attempts
      * 
      * @param string $ipAddress IP address to check
@@ -121,6 +133,9 @@ class Admin {
      * @return bool True if blocked, false otherwise
      */
     public static function isIpBlocked($ipAddress, $maxAttempts = 5, $timeframeMinutes = 5) {
+        // Clean old login attempts first
+        self::cleanOldLoginAttempts();
+        
         $db = Database::getInstance();
         $stmt = $db->query(
             "SELECT COUNT(*) as attempt_count FROM login_attempts 

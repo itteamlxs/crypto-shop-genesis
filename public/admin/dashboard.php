@@ -1,4 +1,3 @@
-
 <?php
 /**
  * Admin dashboard page
@@ -10,17 +9,33 @@ require_once dirname(dirname(__DIR__)) . '/config/bootstrap.php';
 use App\Models\Admin;
 use App\Models\Product;
 use App\Models\OrderAdmin;
+use App\Csrf;
 
 // Set security headers
 header("Content-Security-Policy: default-src 'self'; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net");
 header("X-Frame-Options: DENY");
 header("X-Content-Type-Options: nosniff");
 
+// Start session if not already started
+if (session_status() == PHP_SESSION_NONE) {
+    session_start();
+}
+
 // Check if admin is logged in
 if (!Admin::isLoggedIn()) {
     header("Location: login.php");
     exit;
 }
+
+// Check for session timeout (30 minutes)
+if (!isset($_SESSION['last_activity']) || (time() - $_SESSION['last_activity'] > 1800)) {
+    Admin::logout();
+    header("Location: login.php?timeout=1");
+    exit;
+}
+
+// Update last activity time
+$_SESSION['last_activity'] = time();
 
 // Process logout
 if (isset($_GET['logout'])) {
@@ -34,52 +49,128 @@ $message = '';
 $messageType = '';
 $productAction = '';
 $currentProduct = null;
+$validationErrors = [];
 
 // Handle product deletion
-if (isset($_POST['delete_product']) && isset($_POST['product_id'])) {
-    $productId = filter_input(INPUT_POST, 'product_id', FILTER_VALIDATE_INT);
-    
-    if ($productId && Product::deleteProduct($productId)) {
-        $message = "Product deleted successfully.";
-        $messageType = "success";
-    } else {
-        $message = "Failed to delete product.";
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['delete_product']) && isset($_POST['product_id'])) {
+    // Verify CSRF token
+    if (!Csrf::verifyToken($_POST['csrf_token'] ?? null)) {
+        $message = "Invalid request. Please try again.";
         $messageType = "danger";
+    } else {
+        $productId = filter_input(INPUT_POST, 'product_id', FILTER_VALIDATE_INT);
+        
+        // Validate product ID exists
+        if ($productId) {
+            // Check if product exists
+            $checkProduct = Product::getByIdAdmin($productId);
+            if ($checkProduct) {
+                if (Product::deleteProduct($productId)) {
+                    $message = "Product deleted successfully.";
+                    $messageType = "success";
+                } else {
+                    $message = "Failed to delete product.";
+                    $messageType = "danger";
+                }
+            } else {
+                $message = "Invalid product ID.";
+                $messageType = "danger";
+            }
+        } else {
+            $message = "Invalid product ID.";
+            $messageType = "danger";
+        }
     }
 }
 
 // Handle product creation/update
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['save_product'])) {
-    $productId = filter_input(INPUT_POST, 'product_id', FILTER_VALIDATE_INT);
-    $name = filter_input(INPUT_POST, 'name', FILTER_SANITIZE_STRING);
-    $price = filter_input(INPUT_POST, 'price', FILTER_VALIDATE_FLOAT);
-    $description = filter_input(INPUT_POST, 'description', FILTER_SANITIZE_STRING);
-    $stock = filter_input(INPUT_POST, 'stock', FILTER_VALIDATE_INT);
-    $imageUrl = filter_input(INPUT_POST, 'image_url', FILTER_SANITIZE_URL);
-    
-    if ($name && $price && $description !== false && $stock !== false) {
-        if ($productId) {
-            // Update existing product
-            if (Product::updateProduct($productId, $name, $price, $description, $stock, $imageUrl)) {
-                $message = "Product updated successfully.";
-                $messageType = "success";
+    // Verify CSRF token
+    if (!Csrf::verifyToken($_POST['csrf_token'] ?? null)) {
+        $message = "Invalid request. Please try again.";
+        $messageType = "danger";
+    } else {
+        $productId = filter_input(INPUT_POST, 'product_id', FILTER_VALIDATE_INT);
+        $name = filter_input(INPUT_POST, 'name', FILTER_SANITIZE_STRING);
+        $price = filter_input(INPUT_POST, 'price', FILTER_VALIDATE_FLOAT);
+        $description = filter_input(INPUT_POST, 'description', FILTER_SANITIZE_STRING);
+        $stock = filter_input(INPUT_POST, 'stock', FILTER_VALIDATE_INT);
+        $imageUrl = filter_input(INPUT_POST, 'image_url', FILTER_SANITIZE_URL);
+        
+        // Validate inputs
+        if (empty($name) || strlen($name) > 255) {
+            $validationErrors[] = "Product name must be 1-255 characters.";
+        }
+        
+        if ($price === false || $price < 0.01 || $price > 1000000) {
+            $validationErrors[] = "Price must be between $0.01 and $1,000,000.";
+        }
+        
+        if (empty($description) || strlen($description) > 1000) {
+            $validationErrors[] = "Description must be 1-1000 characters.";
+        }
+        
+        if ($stock === false || $stock < 0 || $stock > 10000) {
+            $validationErrors[] = "Stock must be between 0 and 10,000.";
+        }
+        
+        if (!empty($imageUrl) && strlen($imageUrl) > 255) {
+            $validationErrors[] = "Image URL must be 1-255 characters.";
+        }
+        
+        if (empty($validationErrors)) {
+            if ($productId) {
+                // Verify product exists before updating
+                $checkProduct = Product::getByIdAdmin($productId);
+                if (!$checkProduct) {
+                    $message = "Invalid product ID.";
+                    $messageType = "danger";
+                } else {
+                    // Update existing product
+                    if (Product::updateProduct($productId, $name, $price, $description, $stock, $imageUrl)) {
+                        $message = "Product updated successfully.";
+                        $messageType = "success";
+                    } else {
+                        $message = "Failed to update product.";
+                        $messageType = "danger";
+                    }
+                }
             } else {
-                $message = "Failed to update product.";
-                $messageType = "danger";
+                // Create new product
+                if (Product::createProduct($name, $price, $description, $stock, $imageUrl)) {
+                    $message = "Product created successfully.";
+                    $messageType = "success";
+                } else {
+                    $message = "Failed to create product.";
+                    $messageType = "danger";
+                }
             }
         } else {
-            // Create new product
-            if (Product::createProduct($name, $price, $description, $stock, $imageUrl)) {
-                $message = "Product created successfully.";
-                $messageType = "success";
+            $message = implode("<br>", $validationErrors);
+            $messageType = "danger";
+            
+            // Keep form action for re-submission
+            if ($productId) {
+                $productAction = 'edit';
+                $currentProduct = [
+                    'id' => $productId,
+                    'name' => $name,
+                    'price' => $price,
+                    'description' => $description,
+                    'stock' => $stock,
+                    'image_url' => $imageUrl
+                ];
             } else {
-                $message = "Failed to create product.";
-                $messageType = "danger";
+                $productAction = 'create';
+                $currentProduct = [
+                    'name' => $name,
+                    'price' => $price,
+                    'description' => $description,
+                    'stock' => $stock,
+                    'image_url' => $imageUrl
+                ];
             }
         }
-    } else {
-        $message = "Please fill all required fields with valid values.";
-        $messageType = "danger";
     }
 }
 
@@ -90,6 +181,9 @@ if (isset($_GET['edit']) && !isset($_POST['save_product'])) {
         $currentProduct = Product::getByIdAdmin($productId);
         if ($currentProduct) {
             $productAction = 'edit';
+        } else {
+            $message = "Product not found.";
+            $messageType = "danger";
         }
     }
 }
@@ -107,6 +201,9 @@ $totalRevenue = OrderAdmin::getTotalRevenue();
 
 // Get current tab
 $currentTab = isset($_GET['tab']) ? $_GET['tab'] : 'products';
+
+// Generate CSRF token
+$csrf_token = Csrf::getToken();
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -152,7 +249,7 @@ $currentTab = isset($_GET['tab']) ? $_GET['tab'] : 'products';
     <div class="container mt-4">
         <?php if ($message): ?>
             <div class="alert alert-<?= $messageType ?>" role="alert">
-                <?= htmlspecialchars($message) ?>
+                <?= $message ?>
             </div>
         <?php endif; ?>
 
@@ -202,33 +299,40 @@ $currentTab = isset($_GET['tab']) ? $_GET['tab'] : 'products';
                     </div>
                     <div class="card-body">
                         <form method="post" action="dashboard.php?tab=products">
+                            <?= Csrf::tokenField() ?>
+                            
                             <?php if ($productAction === 'edit'): ?>
                                 <input type="hidden" name="product_id" value="<?= htmlspecialchars($currentProduct['id']) ?>">
                             <?php endif; ?>
                             
                             <div class="mb-3">
                                 <label for="name" class="form-label">Product Name</label>
-                                <input type="text" class="form-control" id="name" name="name" value="<?= $productAction === 'edit' ? htmlspecialchars($currentProduct['name']) : '' ?>" required>
+                                <input type="text" class="form-control" id="name" name="name" value="<?= $productAction === 'edit' || isset($currentProduct['name']) ? htmlspecialchars($currentProduct['name']) : '' ?>" required maxlength="255">
+                                <div class="form-text">1-255 characters</div>
                             </div>
                             
                             <div class="mb-3">
                                 <label for="price" class="form-label">Price (USD)</label>
-                                <input type="number" class="form-control" id="price" name="price" step="0.01" min="0" value="<?= $productAction === 'edit' ? htmlspecialchars($currentProduct['price']) : '' ?>" required>
+                                <input type="number" class="form-control" id="price" name="price" step="0.01" min="0.01" max="1000000" value="<?= $productAction === 'edit' || isset($currentProduct['price']) ? htmlspecialchars($currentProduct['price']) : '' ?>" required>
+                                <div class="form-text">Between $0.01 and $1,000,000</div>
                             </div>
                             
                             <div class="mb-3">
                                 <label for="description" class="form-label">Description</label>
-                                <textarea class="form-control" id="description" name="description" rows="3" required><?= $productAction === 'edit' ? htmlspecialchars($currentProduct['description']) : '' ?></textarea>
+                                <textarea class="form-control" id="description" name="description" rows="3" required maxlength="1000"><?= $productAction === 'edit' || isset($currentProduct['description']) ? htmlspecialchars($currentProduct['description']) : '' ?></textarea>
+                                <div class="form-text">1-1000 characters</div>
                             </div>
                             
                             <div class="mb-3">
                                 <label for="stock" class="form-label">Stock</label>
-                                <input type="number" class="form-control" id="stock" name="stock" min="0" value="<?= $productAction === 'edit' ? htmlspecialchars($currentProduct['stock']) : '0' ?>" required>
+                                <input type="number" class="form-control" id="stock" name="stock" min="0" max="10000" value="<?= $productAction === 'edit' || isset($currentProduct['stock']) ? htmlspecialchars($currentProduct['stock']) : '0' ?>" required>
+                                <div class="form-text">Between 0 and 10,000</div>
                             </div>
                             
                             <div class="mb-3">
                                 <label for="image_url" class="form-label">Image URL (optional)</label>
-                                <input type="text" class="form-control" id="image_url" name="image_url" value="<?= $productAction === 'edit' && isset($currentProduct['image_url']) ? htmlspecialchars($currentProduct['image_url']) : '' ?>">
+                                <input type="text" class="form-control" id="image_url" name="image_url" value="<?= ($productAction === 'edit' || isset($currentProduct['image_url'])) && isset($currentProduct['image_url']) ? htmlspecialchars($currentProduct['image_url']) : '' ?>" maxlength="255">
+                                <div class="form-text">URL to product image (leave empty for default)</div>
                             </div>
                             
                             <div class="d-flex">
@@ -267,6 +371,7 @@ $currentTab = isset($_GET['tab']) ? $_GET['tab'] : 'products';
                                         <td>
                                             <a href="?tab=products&edit=<?= $product['id'] ?>" class="btn btn-sm btn-primary">Edit</a>
                                             <form method="post" action="dashboard.php?tab=products" class="d-inline">
+                                                <?= Csrf::tokenField() ?>
                                                 <input type="hidden" name="product_id" value="<?= $product['id'] ?>">
                                                 <button type="submit" name="delete_product" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure you want to delete this product?');">Delete</button>
                                             </form>

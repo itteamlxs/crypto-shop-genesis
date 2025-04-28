@@ -40,33 +40,41 @@ class PaymentService {
      * @return array|false Payment data or false on failure
      */
     public function createInvoice($amount, $email = null, $productName = 'Product') {
-        // In a production environment, we would call the BTCPay Server API
-        // For example:
-        // $invoice = new Invoice($this->client);
-        // $invoiceData = $invoice->createInvoice([
-        //     'amount' => $amount,
-        //     'currency' => 'USD',
-        //     'metadata' => [
-        //         'buyerEmail' => $email,
-        //         'orderId' => uniqid('order_'),
-        //         'itemDesc' => $productName
-        //     ]
-        // ]);
-        
-        // Simulate creating a BTCPay invoice
-        // Generate a fake Bitcoin address with testnet prefix if in testnet mode
-        $bitcoinAddress = $this->isTestnet ? 'm' . bin2hex(random_bytes(20)) : '1' . bin2hex(random_bytes(20));
-        
-        return [
-            'id' => uniqid('inv_'),
-            'address' => $bitcoinAddress,
-            'amount_btc' => $this->convertToBtc($amount),
-            'amount_usd' => $amount,
-            'expiration_time' => time() + 3600, // 1 hour expiration
-            'status' => 'pending',
-            'payment_url' => "bitcoin:$bitcoinAddress?amount=" . $this->convertToBtc($amount),
-            'is_testnet' => $this->isTestnet
-        ];
+        try {
+            // In a production environment, we would call the BTCPay Server API
+            // For example:
+            // $invoice = new Invoice($this->client);
+            // $invoiceData = $invoice->createInvoice([
+            //     'amount' => $amount,
+            //     'currency' => 'USD',
+            //     'metadata' => [
+            //         'buyerEmail' => $email,
+            //         'orderId' => uniqid('order_'),
+            //         'itemDesc' => $productName
+            //     ]
+            // ]);
+            
+            // Simulate creating a BTCPay invoice
+            // Generate a fake Bitcoin address with testnet prefix if in testnet mode
+            $bitcoinAddress = $this->isTestnet ? 'm' . bin2hex(random_bytes(20)) : '1' . bin2hex(random_bytes(20));
+            
+            return [
+                'id' => uniqid('inv_'),
+                'address' => $bitcoinAddress,
+                'amount_btc' => $this->convertToBtc($amount),
+                'amount_usd' => $amount,
+                'expiration_time' => time() + 3600, // 1 hour expiration
+                'status' => 'pending',
+                'payment_url' => "bitcoin:$bitcoinAddress?amount=" . $this->convertToBtc($amount),
+                'is_testnet' => $this->isTestnet
+            ];
+        } catch (\Exception $e) {
+            // Log the actual error for debugging
+            error_log('Error creating invoice: ' . $e->getMessage());
+            
+            // Return false to indicate failure
+            return false;
+        }
     }
     
     /**
@@ -76,16 +84,24 @@ class PaymentService {
      * @return string Payment status ('pending', 'paid', 'expired')
      */
     public function checkPaymentStatus($invoiceId) {
-        // In a production environment, we would call the BTCPay Server API
-        // For example:
-        // $invoice = new Invoice($this->client);
-        // $invoiceData = $invoice->getInvoice($invoiceId);
-        // return $invoiceData['status'];
-        
-        // Simulate checking payment status
-        // For demonstration purposes, randomly return a status
-        $statuses = ['pending', 'paid', 'expired'];
-        return $statuses[array_rand($statuses)];
+        try {
+            // In a production environment, we would call the BTCPay Server API
+            // For example:
+            // $invoice = new Invoice($this->client);
+            // $invoiceData = $invoice->getInvoice($invoiceId);
+            // return $invoiceData['status'];
+            
+            // Simulate checking payment status
+            // For demonstration purposes, randomly return a status
+            $statuses = ['pending', 'paid', 'expired'];
+            return $statuses[array_rand($statuses)];
+        } catch (\Exception $e) {
+            // Log the actual error for debugging
+            error_log('Error checking payment status: ' . $e->getMessage());
+            
+            // Return pending in case of error
+            return 'pending';
+        }
     }
     
     /**
@@ -95,44 +111,53 @@ class PaymentService {
      * @return bool True if payment confirmed, false otherwise
      */
     public function confirmPayment($orderId) {
-        // Get order details
-        $order = \App\Models\Order::getById($orderId);
-        
-        if (!$order) {
-            return false;
-        }
-        
-        // Check payment status with BTCPay Server
-        $status = $this->checkPaymentStatus($orderId);
-        
-        // If payment is confirmed, update order status
-        if ($status === 'paid' && $order['status'] !== 'paid') {
-            // Update order status
-            \App\Models\Order::updateStatus($orderId, 'paid');
+        try {
+            // Get order details
+            $order = \App\Models\Order::getById($orderId);
             
-            // Send confirmation email if email is provided
-            if (!empty($order['email']) && class_exists('\App\Services\MailService')) {
-                $mailService = new \App\Services\MailService();
-                $product = \App\Models\Product::getById($order['product_id']);
-                
-                $paymentData = [
-                    'address' => $order['crypto_address'],
-                    'amount_btc' => $this->convertToBtc($order['amount']),
-                    'amount_usd' => $order['amount']
-                ];
-                
-                $mailService->sendOrderConfirmation(
-                    $order['email'],
-                    $orderId,
-                    $product['name'] ?? 'Product',
-                    $paymentData
-                );
+            if (!$order) {
+                error_log("Order not found: $orderId");
+                return false;
             }
             
-            return true;
+            // Check payment status with BTCPay Server
+            $status = $this->checkPaymentStatus($orderId);
+            
+            // If payment is confirmed, update order status
+            if ($status === 'paid' && $order['status'] !== 'paid') {
+                // Update order status
+                \App\Models\Order::updateStatus($orderId, 'paid');
+                
+                // Send confirmation email if email is provided
+                if (!empty($order['email']) && class_exists('\App\Services\MailService')) {
+                    $mailService = new \App\Services\MailService();
+                    $product = \App\Models\Product::getById($order['product_id']);
+                    
+                    $paymentData = [
+                        'address' => $order['crypto_address'],
+                        'amount_btc' => $this->convertToBtc($order['amount']),
+                        'amount_usd' => $order['amount']
+                    ];
+                    
+                    $mailService->sendOrderConfirmation(
+                        $order['email'],
+                        $orderId,
+                        $product['name'] ?? 'Product',
+                        $paymentData
+                    );
+                }
+                
+                return true;
+            }
+            
+            return false;
+        } catch (\Exception $e) {
+            // Log the actual error for debugging
+            error_log('Error confirming payment: ' . $e->getMessage());
+            
+            // Return false to indicate failure
+            return false;
         }
-        
-        return false;
     }
     
     /**

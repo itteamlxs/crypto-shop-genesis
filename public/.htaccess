@@ -17,12 +17,29 @@ RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
     Header always set X-Frame-Options "DENY"
     Header always set X-XSS-Protection "1; mode=block"
     Header always set Referrer-Policy "same-origin"
-    # Uncomment the following line in production to set HSTS
-    # Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+    # Enable HSTS with a one-year duration
+    Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+    # Content-Security-Policy
+    Header always set Content-Security-Policy "default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; img-src 'self' https://api.qrserver.com data:; frame-ancestors 'none'"
 </IfModule>
 
 # Prevent directory listing
 Options -Indexes
+
+# Block access to sensitive files and directories
+<FilesMatch "(^\..*|\.sql|\.log|\.md|\.env|\.sh|composer\.json|composer\.lock)$">
+    Require all denied
+</FilesMatch>
+
+# Block access to sensitive directories
+RedirectMatch 404 /\.git
+RedirectMatch 404 /vendor
+RedirectMatch 404 /logs
+RedirectMatch 404 /src
+RedirectMatch 404 /config
+
+# Set default character encoding
+AddDefaultCharset UTF-8
 
 # Process requests to non-existent files as PHP
 RewriteCond %{REQUEST_FILENAME} !-f

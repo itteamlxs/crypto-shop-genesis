@@ -11,6 +11,7 @@ An e-commerce platform built with PHP that allows customers to purchase products
 - [Admin Dashboard Setup](#admin-dashboard-setup)
 - [BTCPay Server Configuration](#btcpay-server-configuration)
 - [Email Configuration](#email-configuration)
+- [Security Considerations](#security-considerations)
 
 ## Requirements
 
@@ -89,8 +90,8 @@ After installation, you should:
    - [Coinfaucet](https://coinfaucet.eu/en/btc-testnet/)
 
 3. Use the testing page to simulate a payment:
-   - Visit `http://localhost:8000/test_payment.php`
-   - This page will generate a test order for a sample product
+   - Visit `http://localhost:8000/test_payment.php?product_id=1` (specifying a product ID is optional)
+   - This page will generate a test order for the selected product
    - Send the requested amount of testnet bitcoin to the provided address
    - Use the "Check Payment Status" button to verify the payment
 
@@ -279,6 +280,91 @@ To test your email configuration:
    $sent = $mailService->sendTestEmail('your-test-email@example.com');
    echo $sent ? 'Test email sent successfully!' : 'Failed to send test email.';
    ```
+
+## Security Considerations
+
+### Security Measures Implemented
+
+Crypto Shop includes a comprehensive set of security measures to protect your application and user data:
+
+1. **Cross-Site Scripting (XSS) Prevention**:
+   - All output is escaped using `htmlspecialchars()`
+   - Content Security Policy (CSP) headers restrict script sources
+   - Input validation on all form submissions
+
+2. **SQL Injection Prevention**:
+   - Prepared statements used for all database queries
+   - Parameterized queries with proper type binding
+   - Input validation before database operations
+
+3. **Cross-Site Request Forgery (CSRF) Protection**:
+   - CSRF tokens for all forms and state-changing actions
+   - Token verification on form submission
+   - Secure token generation using cryptographically secure functions
+
+4. **Session Security**:
+   - Secure session configuration (`HttpOnly`, `Secure`, `SameSite=Strict`)
+   - Session timeout after 30 minutes of inactivity
+   - Session regeneration after login to prevent session fixation
+   - Rate limiting for login attempts
+
+5. **Authentication Security**:
+   - Strong password hashing with `password_hash()` using bcrypt
+   - Rate limiting to prevent brute force attacks
+   - Account lockout after multiple failed attempts
+   - Secure password requirements
+
+6. **Server Hardening**:
+   - HTTPS enforcement with proper SSL/TLS configuration
+   - Security headers (CSP, X-Frame-Options, X-Content-Type-Options)
+   - Restricted file permissions and directory access
+   - Firewall configuration with proper port restrictions
+   - Fail2ban integration for intrusion prevention
+
+7. **Error Handling**:
+   - Custom error pages to prevent information disclosure
+   - Error logging without exposing sensitive information
+   - Generic error messages to users
+   - Detailed error logging for administrators
+
+8. **Input Validation**:
+   - Server-side validation for all form inputs
+   - Client-side validation for user experience
+   - Strict type checking and data filtering
+
+### Security Recommendations for Production
+
+1. **Access Control and Credentials**:
+   - Change the default admin credentials immediately
+   - Use strong, unique passwords (12+ characters with mixed types)
+   - Implement multi-factor authentication where possible
+   - Limit SSH access with key-based authentication only
+
+2. **Regular Maintenance**:
+   - Keep all software components updated (`composer update`, `apt update`)
+   - Regularly review and rotate API credentials and secrets
+   - Monitor server logs for suspicious activity
+   - Perform regular security audits
+
+3. **Backups and Recovery**:
+   - Set up automated daily database backups
+   - Store backups in a separate secure location
+   - Test restoration procedure regularly
+   - Implement a disaster recovery plan
+
+4. **Additional Security Layers**:
+   - Consider adding a Web Application Firewall (WAF)
+   - Implement rate limiting on all public-facing endpoints
+   - Consider DDoS protection services
+   - Set up security monitoring and alerting
+
+5. **Data Protection**:
+   - Minimize data collection to what's necessary
+   - Don't store sensitive data unnecessarily
+   - Encrypt sensitive data at rest
+   - Follow applicable data protection regulations (GDPR, CCPA, etc.)
+
+By following these security best practices, you'll maintain a secure environment for your Crypto Shop installation and protect both your business and customer data.
 
 ## Troubleshooting
 
