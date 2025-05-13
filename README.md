@@ -39,20 +39,88 @@ composer install
 ```bash
 cp .env.example .env
 ```
-Then edit the `.env` file with your actual credentials.
+Then edit the `.env` file with your actual credentials:
+```
+# Database Configuration
+DB_HOST=localhost     # Host of the MySQL database
+DB_NAME=crypto_shop   # Name of the database
+DB_USER=your_db_user  # Your database username
+DB_PASS=your_db_pass  # Your database password
+
+# BTCPay Server Configuration (see BTCPay Server section below)
+CRYPTO_API_KEY=your_api_key
+CRYPTO_API_SECRET=your_api_secret
+CRYPTO_API_URL=https://your-btcpay-instance.com
+
+# Mail Configuration (see Email Configuration section below)
+MAIL_HOST=your_smtp_host
+MAIL_USERNAME=your_email@example.com
+MAIL_PASSWORD=your_email_password
+MAIL_FROM_NAME="Crypto Shop"
+
+# Environment Setting
+ENVIRONMENT=development  # Change to 'production' when deploying
+```
 
 4. Set up the database:
 ```bash
+# Create database and import schema
 mysql -u your_username -p < database.sql
 ```
 
-5. Ensure the web server has write permissions to the logs directory:
+5. Ensure the web server has proper permissions:
 ```bash
+# Create logs directory and set permissions
 mkdir -p logs
 chmod 755 logs
+
+# Set permission for product images directory
+chmod 755 public/img/products
 ```
 
-6. Start the PHP development server for testing:
+6. Configure your web server:
+
+For Apache:
+```apache
+<VirtualHost *:80>
+    ServerName yoursite.local
+    DocumentRoot /path/to/crypto-shop/public
+    
+    <Directory /path/to/crypto-shop/public>
+        AllowOverride All
+        Require all granted
+    </Directory>
+    
+    ErrorLog ${APACHE_LOG_DIR}/error.log
+    CustomLog ${APACHE_LOG_DIR}/access.log combined
+</VirtualHost>
+```
+
+For Nginx:
+```nginx
+server {
+    listen 80;
+    server_name yoursite.local;
+    root /path/to/crypto-shop/public;
+    
+    index index.php;
+    
+    location / {
+        try_files $uri $uri/ /index.php?$args;
+    }
+    
+    location ~ \.php$ {
+        include snippets/fastcgi-php.conf;
+        fastcgi_pass unix:/var/run/php/php8.1-fpm.sock;
+    }
+    
+    location ~ /\. {
+        deny all;
+    }
+}
+```
+
+7. Start the PHP development server for testing (alternative to web server setup):
 ```bash
 cd public
 php -S localhost:8000
@@ -62,10 +130,15 @@ php -S localhost:8000
 
 After installation, you should:
 
-1. Visit the homepage at `http://localhost:8000` to see the product catalog
-2. Check that products are displayed correctly
+1. Visit the homepage at `http://localhost:8000` (or your configured domain)
+2. Verify that products are displayed correctly
 3. Try adding a product to the cart
-4. Test the checkout process
+4. Navigate through the checkout process
+5. Login to the admin dashboard at `/admin/login.php` with default credentials:
+   - Username: `admin`
+   - Password: `admin123`
+   
+   **Important**: Change these credentials immediately after first login!
 
 ## Local Testing
 
@@ -384,6 +457,20 @@ By following these security best practices, you'll maintain a secure environment
    - Check your SMTP settings
    - For Gmail, ensure you're using an App Password
    - Check your mail server logs for any errors
+
+4. **Permission Issues**:
+   - Ensure web server has write access to the logs directory
+   - Check file ownership (should be web server user)
+   - Verify directory permissions (755 for directories, 644 for files)
+
+5. **Blank Page or 500 Error**:
+   - Check PHP error logs
+   - Temporarily enable error display in development:
+     ```php
+     ini_set('display_errors', 1);
+     error_reporting(E_ALL);
+     ```
+   - Verify PHP version compatibility (8.1+)
 
 ### Getting Help
 
